@@ -28,6 +28,7 @@ from engine import evaluate, train_one_epoch
 from models import build_model
 from models.postprocessors import build_postprocessors
 
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 def get_args_parser():
     parser = argparse.ArgumentParser("Set transformer detector", add_help=False)
@@ -306,7 +307,7 @@ def main(args):
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.set_deterministic(True)
+    torch.set_deterministic(False)
 
     # Build the model
     model, criterion, contrastive_criterion, qa_criterion, weight_dict = build_model(args)
@@ -425,10 +426,10 @@ def main(args):
         val_tuples.append(Val_all(dataset_name=dset_name, dataloader=dataloader, base_ds=base_ds, evaluator_list=None))
 
     if args.frozen_weights is not None:
-        if args.resume.startswith("https"):
-            checkpoint = torch.hub.load_state_dict_from_url(args.resume, map_location="cpu", check_hash=True)
+        if args.frozen_weights.startswith("https"):
+            checkpoint = torch.hub.load_state_dict_from_url(args.frozen_weights, map_location="cpu", check_hash=True)
         else:
-            checkpoint = torch.load(args.resume, map_location="cpu")
+            checkpoint = torch.load(args.frozen_weights, map_location="cpu")
         if "model_ema" in checkpoint and checkpoint["model_ema"] is not None:
             model_without_ddp.detr.load_state_dict(checkpoint["model_ema"], strict=False)
         else:

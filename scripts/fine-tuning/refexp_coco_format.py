@@ -94,7 +94,7 @@ def convert(dataset_path: Path, dataset_name: str, split: str, output_path, coco
                 "category_id": item["category_id"],
                 "id": next_id,
                 "bbox": annid2cocoann[item["ann_id"]]["bbox"],
-                # "segmentation": annid2cocoann[item['ann_id']]['segmentation'],
+                "segmentation": annid2cocoann[item['ann_id']]['segmentation'],
                 "original_id": item["ann_id"],
                 "tokens_positive": root_spans,
             }
