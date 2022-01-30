@@ -575,7 +575,7 @@ def main(args):
                     checkpoint_path,
                 )
 
-        if epoch % args.eval_skip == 0:
+        if (epoch + 1) % args.eval_skip == 0:
             test_stats = {}
             test_model = model_ema if model_ema is not None else model
             for i, item in enumerate(val_tuples):
@@ -610,7 +610,7 @@ def main(args):
             with (output_dir / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
 
-        if epoch % args.eval_skip == 0:
+        if (epoch + 1) % args.eval_skip == 0:
             if args.do_qa:
                 metric = test_stats["gqa_accuracy_answer_total_unscaled"]
             else:
