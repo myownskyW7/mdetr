@@ -10,7 +10,9 @@ from transformers import RobertaTokenizerFast
 import util.dist as dist
 from util.box_ops import generalized_box_iou
 
+import numpy as np
 from .coco import ModulatedDetection, make_coco_transforms
+import pycocotools.mask as mask_util
 
 
 class RefExpDetection(ModulatedDetection):
@@ -49,6 +51,9 @@ class RefExpEvaluator(object):
                 "refcocog": {k: 0.0 for k in self.k},
             }
             dataset2count = {"refcoco": 0.0, "refcoco+": 0.0, "refcocog": 0.0}
+            mask_pos_num = 0
+            mask_all_num = 0
+            mask_ious_list = []
             for image_id in self.img_ids:
                 ann_ids = self.refexp_gt.getAnnIds(imgIds=image_id)
                 assert len(ann_ids) == 1
@@ -73,6 +78,26 @@ class RefExpEvaluator(object):
                 for k in self.k:
                     if max(giou[:k]) >= self.thresh_iou:
                         dataset2score[img_info["dataset_name"]][k] += 1.0
+                if 'masks' in prediction:
+                    raw_scores = prediction["scores"]
+                    sort_scores, sort_scores_order = raw_scores.sort(descending=True)
+                    ordered_masks = prediction["masks"][sort_scores_order]
+                    
+                    rles = []
+                    for mask in ordered_masks:
+                        rle = mask_util.encode(np.array(mask[0, :, :, np.newaxis], dtype=np.uint8, order="F"))[0]           
+                        rle["counts"] = rle["counts"].decode("utf-8")
+                        rles.append(rle)
+                    
+                    gt_rle = mask_util.frPyObjects(target[0]['segmentation'], img_info['height'], img_info['width'])[0]
+                    gt_rle["counts"] = gt_rle["counts"].decode("utf-8")
+                    
+                    mask_ious = mask_util.iou(rles, [gt_rle], [False])
+                    
+                    mask_pos_num += int(mask_ious[0] > 0.7)
+                    mask_all_num += 1
+                    mask_ious_list.append(mask_ious[0])
+                
                 dataset2count[img_info["dataset_name"]] += 1.0
 
             for key, value in dataset2score.items():
@@ -85,7 +110,10 @@ class RefExpEvaluator(object):
             for key, value in dataset2score.items():
                 results[key] = sorted([v for k, v in value.items()])
                 print(f" Dataset: {key} - Precision @ 1, 5, 10: {results[key]} \n")
-
+            if 'masks' in prediction:
+                mask_p = mask_pos_num / float(mask_all_num)
+                mask_mean_iou = np.sum(mask_ious_list) / float(mask_all_num)
+                print(f'Dataset: refcoco - Precision @ 1: {mask_p} - Mean IoU: {mask_mean_iou} \n')
             return results
         return None
 
